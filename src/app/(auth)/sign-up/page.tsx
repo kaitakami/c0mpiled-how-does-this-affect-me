@@ -26,14 +26,14 @@ export default function SignUpPage() {
       name,
       email,
       password,
-      callbackURL: "/dashboard",
+      callbackURL: "/onboarding",
     });
 
     if (error) {
       setError(error.message ?? "Failed to create account");
       setLoading(false);
     } else {
-      router.push("/dashboard");
+      router.push("/onboarding");
     }
   };
 
