@@ -3,18 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Vote, ArrowLeft, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -43,56 +36,107 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Sign In</CardTitle>
-          <CardDescription>
-            Enter your email and password to sign in
-          </CardDescription>
-        </CardHeader>
+    <div className="relative flex min-h-screen items-center justify-center px-4">
+      {/* Background effects */}
+      <div className="pointer-events-none fixed inset-0 bg-dot-pattern opacity-30" />
+      <div className="pointer-events-none fixed inset-0 bg-glow-primary opacity-50" />
+
+      {/* Back to home */}
+      <Link
+        href="/"
+        className="fixed top-6 left-6 z-10 flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-4" />
+        Back
+      </Link>
+
+      {/* Auth card */}
+      <div
+        className="relative w-full max-w-sm"
+        style={{ animation: "fade-up 0.6s ease-out" }}
+      >
+        {/* Logo + heading */}
+        <div className="mb-8 flex flex-col items-center text-center">
+          <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-white/10 border border-white/[0.08]">
+            <Vote className="size-6 text-white" />
+          </div>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+            Welcome back
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Sign in to your account to continue
+          </p>
+        </div>
+
+        {/* Form */}
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-6 backdrop-blur-sm">
+            <div className="space-y-4">
+              {error && (
+                <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                  {error}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label
+                  htmlFor="email"
+                  className="text-sm text-muted-foreground"
+                >
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="h-10 border-white/[0.08] bg-white/[0.04] placeholder:text-white/20 focus-visible:border-white/20 focus-visible:ring-white/10"
+                />
               </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <div className="space-y-2">
+                <Label
+                  htmlFor="password"
+                  className="text-sm text-muted-foreground"
+                >
+                  Password
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-10 border-white/[0.08] bg-white/[0.04] placeholder:text-white/20 focus-visible:border-white/20 focus-visible:ring-white/10"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign In"}
+
+            <Button type="submit" className="mt-6 w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
-            <p className="text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link href="/sign-up" className="text-primary underline">
-                Sign Up
-              </Link>
-            </p>
-          </CardFooter>
+          </div>
         </form>
-      </Card>
+
+        {/* Footer link */}
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/sign-up"
+            className="text-foreground underline-offset-4 hover:underline"
+          >
+            Sign Up
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
