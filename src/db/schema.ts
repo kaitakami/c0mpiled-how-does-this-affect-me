@@ -55,3 +55,39 @@ export const verification = pgTable("verification", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+// Ballot tables
+export const ballot = pgTable("ballot", {
+  id: text("id").primaryKey(),
+  state: text("state").notNull(),
+  county: text("county").notNull(),
+  electionDate: timestamp("election_date").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const measure = pgTable("measure", {
+  id: text("id").primaryKey(),
+  ballotId: text("ballot_id")
+    .notNull()
+    .references(() => ballot.id, { onDelete: "cascade" }),
+  code: text("code").notNull(),
+  title: text("title").notNull(),
+  summary: text("summary").notNull(),
+  category: text("category").notNull(),
+  impactFormula: text("impact_formula"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const userProfile = pgTable("user_profile", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+  zipCode: text("zip_code").notNull(),
+  housingStatus: text("housing_status").notNull(),
+  homeValue: integer("home_value"),
+  monthlyRent: integer("monthly_rent"),
+  incomeRange: text("income_range"),
+  jobSector: text("job_sector"),
+  householdSize: integer("household_size"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
