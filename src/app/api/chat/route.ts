@@ -111,14 +111,30 @@ Guidelines:
 			try {
 				const { text: decision } = await generateText({
 					model: openai("gpt-4o-mini"),
-					system: `You manage a user's memory for a ballot impact app. You receive the current memory and a new Q&A exchange. Decide if the memory should be updated with new info (preferences, concerns, clarifications, inferred facts about the user). If yes, output the full updated memory. If no new info worth saving, output exactly "NO_UPDATE". Keep the memory concise — bullet points, max 15 lines. Never remove existing useful info, only add or refine.`,
+					system: `You manage a user's memory for a ballot impact app. After each Q&A you decide whether to update the memory.
+
+ALWAYS update the memory if the Q&A reveals ANY of the following — even if only implied:
+- Topics or measures the user cares about (e.g. asking about rent = cares about housing)
+- Life circumstances (kids, school, commute, job details, plans to buy/move)
+- Concerns or priorities (cost, safety, environment, transit)
+- Opinions or leanings on measures
+- Specific financial details mentioned in conversation
+
+Be AGGRESSIVE about inferring useful info. If someone asks "how does Prop 2 affect me?" infer they care about education. If they mention kids, save it. If they ask about rent, note they're concerned about housing costs.
+
+Output the full updated memory as concise bullet points (max 15 lines). Preserve all existing info, add new items.
+Only output "NO_UPDATE" if the question is truly generic with zero personal signal (e.g. "what is Prop 33").`,
 					prompt: `CURRENT MEMORY:\n${currentMemory || "(empty)"}\n\nNEW Q&A:\nQ: ${lastUserMessage}\nA: ${text}`,
 				});
 
 				if (decision.trim() !== "NO_UPDATE") {
-					await hyperspell.updateMemory(userId, decision.trim(), {
-						lastUpdated: new Date().toISOString(),
-					});
+					const meta = { lastUpdated: new Date().toISOString() };
+					try {
+						await hyperspell.updateMemory(userId, decision.trim(), meta);
+					} catch {
+						// Memory doesn't exist yet — create it
+						await hyperspell.addMemory(userId, decision.trim(), meta);
+					}
 				}
 			} catch {
 				// Memory update failed silently
