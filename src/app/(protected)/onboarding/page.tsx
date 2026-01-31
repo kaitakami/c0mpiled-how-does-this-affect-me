@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
 	Vote,
@@ -19,8 +19,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Map, MapTileLayer, MapCircle } from "@/components/ui/map";
 import { api } from "@/lib/api-client";
 import type { HousingStatus, IncomeRange, JobSector } from "@/types";
+import type { LatLngExpression } from "leaflet";
 
 const TOTAL_STEPS = 4;
 
@@ -53,6 +55,11 @@ export default function OnboardingPage() {
 	const [direction, setDirection] = useState<"forward" | "back">("forward");
 	const [submitting, setSubmitting] = useState(false);
 
+	// Map state
+	const [mapCenter, setMapCenter] = useState<LatLngExpression | null>(null);
+	const [locationName, setLocationName] = useState("");
+	const geocodeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 	// Form state
 	const [zipCode, setZipCode] = useState("");
 	const [housingStatus, setHousingStatus] = useState<HousingStatus | null>(null);
@@ -61,6 +68,37 @@ export default function OnboardingPage() {
 	const [incomeRange, setIncomeRange] = useState<IncomeRange | null>(null);
 	const [jobSector, setJobSector] = useState<JobSector | null>(null);
 	const [householdSize, setHouseholdSize] = useState("1");
+
+	// Geocode ZIP code via Nominatim (free, no API key)
+	useEffect(() => {
+		if (geocodeTimeout.current) clearTimeout(geocodeTimeout.current);
+
+		if (zipCode.length !== 5 || !/^\d{5}$/.test(zipCode)) {
+			setMapCenter(null);
+			setLocationName("");
+			return;
+		}
+
+		geocodeTimeout.current = setTimeout(async () => {
+			try {
+				const res = await fetch(
+					`https://nominatim.openstreetmap.org/search?postalcode=${zipCode}&country=US&format=json&limit=1`,
+					{ headers: { "User-Agent": "HowDoesThisAffectMe/1.0" } },
+				);
+				const data = await res.json();
+				if (data.length > 0) {
+					setMapCenter([Number.parseFloat(data[0].lat), Number.parseFloat(data[0].lon)]);
+					setLocationName(data[0].display_name?.split(",").slice(0, 2).join(",") ?? "");
+				}
+			} catch {
+				// Geocoding failed silently — map just won't show
+			}
+		}, 400);
+
+		return () => {
+			if (geocodeTimeout.current) clearTimeout(geocodeTimeout.current);
+		};
+	}, [zipCode]);
 
 	const canProceed = useCallback(() => {
 		switch (step) {
@@ -175,8 +213,8 @@ export default function OnboardingPage() {
 									Your ZIP code determines which ballot measures affect you.
 								</p>
 
-								<div className="mt-10 flex w-full flex-col items-center gap-4">
-									<div className="w-full max-w-xs">
+								<div className="mt-8 w-full space-y-4">
+									<div className="w-full">
 										<Label htmlFor="zip" className="sr-only">
 											ZIP Code
 										</Label>
@@ -185,18 +223,52 @@ export default function OnboardingPage() {
 											type="text"
 											inputMode="numeric"
 											maxLength={5}
-											placeholder="ZIP Code"
+											placeholder="Enter your ZIP code"
 											value={zipCode}
 											onChange={(e) => setZipCode(e.target.value.replace(/\D/g, ""))}
 											className={`${inputClasses} text-center text-lg tracking-widest`}
 											autoFocus
 										/>
 									</div>
+
+									{/* Map */}
+									{mapCenter && (
+										<div
+											className="overflow-hidden rounded-xl border border-white/[0.08]"
+											style={{ animation: "scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1)" }}
+										>
+											<Map
+												center={mapCenter}
+												zoom={12}
+												className="h-56 w-full !min-h-0 !rounded-xl"
+												scrollWheelZoom={false}
+												dragging={false}
+												doubleClickZoom={false}
+												touchZoom={false}
+											>
+												<MapTileLayer />
+												<MapCircle
+													center={mapCenter}
+													radius={3000}
+													className="!fill-white/10 !stroke-white/30 !stroke-1"
+												/>
+											</Map>
+											{locationName && (
+												<div className="border-t border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
+													<p className="flex items-center gap-2 text-sm text-muted-foreground">
+														<MapPin className="size-3.5 shrink-0 text-white/40" />
+														{locationName}
+													</p>
+												</div>
+											)}
+										</div>
+									)}
+
 									<Button
 										onClick={goNext}
 										disabled={!canProceed()}
 										size="lg"
-										className="h-12 w-full max-w-xs gap-2 rounded-xl text-base"
+										className="h-12 w-full gap-2 rounded-xl text-base"
 									>
 										Continue
 										<ArrowRight className="size-4" />
