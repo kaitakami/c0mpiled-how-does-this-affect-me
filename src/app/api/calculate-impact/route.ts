@@ -53,9 +53,12 @@ export async function POST(request: NextRequest) {
   const body: CalculateImpactRequest = await request.json();
   const { measureId, profile } = body;
 
-  const result = await db.query.measure.findFirst({
-    where: eq(measure.id, measureId),
-  });
+  const results = await db
+    .select()
+    .from(measure)
+    .where(eq(measure.id, measureId))
+    .limit(1);
+  const result = results[0];
 
   if (!result) {
     return NextResponse.json(
