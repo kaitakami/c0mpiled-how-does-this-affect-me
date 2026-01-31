@@ -1,18 +1,14 @@
-import type { UserProfile, UserProfileInput } from "./user";
-import type {
-  Ballot,
-  BallotMeasureDetail,
-  BallotWithMeasures,
-} from "./ballot";
+import type { Ballot, BallotMeasureDetail, BallotWithMeasures } from "./ballot";
 import type { CalculateImpactRequest, CalculateImpactResponse } from "./impact";
+import type { UserProfile, UserProfileInput } from "./user";
 
 // ── API Contracts ────────────────────────────────────────────
 
 // ── GET /api/ballots?state=XX&county=YY ──────────────────────
 
 export interface GetBallotParams {
-  state: string;
-  county: string;
+	state: string;
+	county: string;
 }
 
 export type GetBallotResponse = Ballot;
@@ -37,7 +33,7 @@ export type CreateUserProfileResponse = UserProfile;
 // ── GET /api/user-profile?userId=XXX ─────────────────────────
 
 export interface GetUserProfileParams {
-  userId: string;
+	userId: string;
 }
 
 export type GetUserProfileResponse = UserProfile;

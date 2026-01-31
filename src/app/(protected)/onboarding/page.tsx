@@ -1,28 +1,32 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import type { LatLngExpression } from "leaflet";
 import {
-	Vote,
-	MapPin,
-	Home,
-	Building2,
-	DollarSign,
-	Users,
-	ArrowRight,
 	ArrowLeft,
-	Loader2,
-	Check,
+	ArrowRight,
 	Briefcase,
+	Building2,
+	Check,
+	DollarSign,
+	Home,
+	Loader2,
+	MapPin,
 	Sparkles,
+	Users,
+	Vote,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Map, MapTileLayer, MapCircle } from "@/components/ui/map";
+import {
+	Map as LeafletMap,
+	MapCircle,
+	MapTileLayer,
+} from "@/components/ui/map";
 import { api } from "@/lib/api-client";
 import type { HousingStatus, IncomeRange, JobSector } from "@/types";
-import type { LatLngExpression } from "leaflet";
 
 const TOTAL_STEPS = 4;
 
@@ -36,7 +40,11 @@ const INCOME_OPTIONS: { value: IncomeRange; label: string; short: string }[] = [
 	{ value: "over-200k", label: "Over $200k", short: "$200k+" },
 ];
 
-const JOB_SECTORS: { value: JobSector; label: string; icon: typeof Briefcase }[] = [
+const JOB_SECTORS: {
+	value: JobSector;
+	label: string;
+	icon: typeof Briefcase;
+}[] = [
 	{ value: "tech", label: "Technology", icon: Briefcase },
 	{ value: "healthcare", label: "Healthcare", icon: Briefcase },
 	{ value: "education", label: "Education", icon: Briefcase },
@@ -65,7 +73,9 @@ export default function OnboardingPage() {
 
 	// Form state
 	const [zipCode, setZipCode] = useState("");
-	const [housingStatus, setHousingStatus] = useState<HousingStatus | null>(null);
+	const [housingStatus, setHousingStatus] = useState<HousingStatus | null>(
+		null,
+	);
 	const [homeValue, setHomeValue] = useState("");
 	const [monthlyRent, setMonthlyRent] = useState("");
 	const [incomeRange, setIncomeRange] = useState<IncomeRange | null>(null);
@@ -96,8 +106,13 @@ export default function OnboardingPage() {
 				);
 				const data = await res.json();
 				if (data.length > 0) {
-					setMapCenter([Number.parseFloat(data[0].lat), Number.parseFloat(data[0].lon)]);
-					setLocationName(data[0].display_name?.split(",").slice(0, 2).join(",") ?? "");
+					setMapCenter([
+						Number.parseFloat(data[0].lat),
+						Number.parseFloat(data[0].lon),
+					]);
+					setLocationName(
+						data[0].display_name?.split(",").slice(0, 2).join(",") ?? "",
+					);
 					setHasGeocodedResult(true);
 				}
 			} catch {
@@ -110,7 +125,7 @@ export default function OnboardingPage() {
 		return () => {
 			if (geocodeTimeout.current) clearTimeout(geocodeTimeout.current);
 		};
-	}, [zipCode]);
+	}, [zipCode, hasGeocodedResult]);
 
 	const canProceed = useCallback(() => {
 		switch (step) {
@@ -124,11 +139,20 @@ export default function OnboardingPage() {
 			case 2:
 				return incomeRange !== null && jobSector !== null;
 			case 3:
-				return Number.parseInt(householdSize) >= 1;
+				return Number.parseInt(householdSize, 10) >= 1;
 			default:
 				return false;
 		}
-	}, [step, zipCode, housingStatus, homeValue, monthlyRent, incomeRange, jobSector, householdSize]);
+	}, [
+		step,
+		zipCode,
+		housingStatus,
+		homeValue,
+		monthlyRent,
+		incomeRange,
+		jobSector,
+		householdSize,
+	]);
 
 	const goNext = () => {
 		if (step < TOTAL_STEPS - 1) {
@@ -153,11 +177,13 @@ export default function OnboardingPage() {
 				userId: `user-${Date.now()}`,
 				zipCode,
 				housingStatus,
-				homeValue: housingStatus === "owner" ? Number.parseInt(homeValue) : null,
-				monthlyRent: housingStatus === "renter" ? Number.parseInt(monthlyRent) : null,
+				homeValue:
+					housingStatus === "owner" ? Number.parseInt(homeValue, 10) : null,
+				monthlyRent:
+					housingStatus === "renter" ? Number.parseInt(monthlyRent, 10) : null,
 				incomeRange,
 				jobSector,
-				householdSize: Number.parseInt(householdSize),
+				householdSize: Number.parseInt(householdSize, 10),
 			});
 			router.push("/dashboard");
 		} catch {
@@ -237,7 +263,9 @@ export default function OnboardingPage() {
 											maxLength={5}
 											placeholder="Enter your ZIP code"
 											value={zipCode}
-											onChange={(e) => setZipCode(e.target.value.replace(/\D/g, ""))}
+											onChange={(e) =>
+												setZipCode(e.target.value.replace(/\D/g, ""))
+											}
 											className={`${inputClasses} text-center text-lg tracking-widest`}
 											autoFocus
 										/>
@@ -245,7 +273,7 @@ export default function OnboardingPage() {
 
 									{/* Map */}
 									<div className="relative overflow-hidden rounded-xl border border-white/[0.08]">
-										<Map
+										<LeafletMap
 											key={`${(mapCenter as number[])[0]}-${(mapCenter as number[])[1]}`}
 											center={mapCenter}
 											zoom={hasGeocodedResult ? 12 : 6}
@@ -263,16 +291,21 @@ export default function OnboardingPage() {
 													className="!fill-white/10 !stroke-white/30 !stroke-1"
 												/>
 											)}
-										</Map>
+										</LeafletMap>
 
 										{/* Geocoding loader overlay */}
 										{geocoding && (
 											<div className="absolute inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
 												<div className="flex flex-col items-center gap-3">
 													<div className="relative size-8">
-														<div className="absolute inset-0 animate-spin rounded-full border-2 border-white/10 border-t-white/70" style={{ animationDuration: "0.8s" }} />
+														<div
+															className="absolute inset-0 animate-spin rounded-full border-2 border-white/10 border-t-white/70"
+															style={{ animationDuration: "0.8s" }}
+														/>
 													</div>
-													<span className="text-xs font-medium text-white/60">Finding your area...</span>
+													<span className="text-xs font-medium text-white/60">
+														Finding your area...
+													</span>
 												</div>
 											</div>
 										)}
@@ -338,14 +371,18 @@ export default function OnboardingPage() {
 											>
 												<Building2
 													className={`size-5 transition-colors duration-300 ${
-														housingStatus === "renter" ? "text-white" : "text-white/30"
+														housingStatus === "renter"
+															? "text-white"
+															: "text-white/30"
 													}`}
 												/>
 											</div>
 											<div className="relative text-center">
 												<span
 													className={`text-sm font-semibold transition-colors duration-300 ${
-														housingStatus === "renter" ? "text-foreground" : "text-muted-foreground"
+														housingStatus === "renter"
+															? "text-foreground"
+															: "text-muted-foreground"
 													}`}
 												>
 													Renter
@@ -384,14 +421,18 @@ export default function OnboardingPage() {
 											>
 												<Home
 													className={`size-5 transition-colors duration-300 ${
-														housingStatus === "owner" ? "text-white" : "text-white/30"
+														housingStatus === "owner"
+															? "text-white"
+															: "text-white/30"
 													}`}
 												/>
 											</div>
 											<div className="relative text-center">
 												<span
 													className={`text-sm font-semibold transition-colors duration-300 ${
-														housingStatus === "owner" ? "text-foreground" : "text-muted-foreground"
+														housingStatus === "owner"
+															? "text-foreground"
+															: "text-muted-foreground"
 													}`}
 												>
 													Homeowner
@@ -414,9 +455,15 @@ export default function OnboardingPage() {
 									{housingStatus === "renter" && (
 										<div
 											className="space-y-2"
-											style={{ animation: "scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}
+											style={{
+												animation:
+													"scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+											}}
 										>
-											<Label htmlFor="rent" className="text-sm text-muted-foreground">
+											<Label
+												htmlFor="rent"
+												className="text-sm text-muted-foreground"
+											>
 												Monthly rent
 											</Label>
 											<div className="relative">
@@ -442,9 +489,15 @@ export default function OnboardingPage() {
 									{housingStatus === "owner" && (
 										<div
 											className="space-y-2"
-											style={{ animation: "scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}
+											style={{
+												animation:
+													"scale-in 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+											}}
 										>
-											<Label htmlFor="homeValue" className="text-sm text-muted-foreground">
+											<Label
+												htmlFor="homeValue"
+												className="text-sm text-muted-foreground"
+											>
 												Estimated home value
 											</Label>
 											<div className="relative">
@@ -564,7 +617,7 @@ export default function OnboardingPage() {
 										type="button"
 										onClick={() =>
 											setHouseholdSize((s) =>
-												String(Math.max(1, Number.parseInt(s) - 1)),
+												String(Math.max(1, Number.parseInt(s, 10) - 1)),
 											)
 										}
 										disabled={householdSize === "1"}
@@ -577,7 +630,7 @@ export default function OnboardingPage() {
 											{householdSize}
 										</span>
 										<span className="mt-1 text-sm text-muted-foreground">
-											{Number.parseInt(householdSize) === 1
+											{Number.parseInt(householdSize, 10) === 1
 												? "Just you"
 												: `${householdSize} people`}
 										</span>
@@ -586,7 +639,7 @@ export default function OnboardingPage() {
 										type="button"
 										onClick={() =>
 											setHouseholdSize((s) =>
-												String(Math.min(12, Number.parseInt(s) + 1)),
+												String(Math.min(12, Number.parseInt(s, 10) + 1)),
 											)
 										}
 										disabled={householdSize === "12"}
@@ -610,7 +663,9 @@ export default function OnboardingPage() {
 									<div className="grid grid-cols-2 gap-x-6 gap-y-3">
 										<div>
 											<p className="text-xs text-muted-foreground">Location</p>
-											<p className="mt-0.5 text-sm font-medium text-foreground">{zipCode}</p>
+											<p className="mt-0.5 text-sm font-medium text-foreground">
+												{zipCode}
+											</p>
 										</div>
 										<div>
 											<p className="text-xs text-muted-foreground">Housing</p>
@@ -623,7 +678,10 @@ export default function OnboardingPage() {
 										<div>
 											<p className="text-xs text-muted-foreground">Income</p>
 											<p className="mt-0.5 text-sm font-medium text-foreground">
-												{INCOME_OPTIONS.find((o) => o.value === incomeRange)?.label}
+												{
+													INCOME_OPTIONS.find((o) => o.value === incomeRange)
+														?.label
+												}
 											</p>
 										</div>
 										<div>
