@@ -56,8 +56,11 @@ export default function OnboardingPage() {
 	const [submitting, setSubmitting] = useState(false);
 
 	// Map state
-	const [mapCenter, setMapCenter] = useState<LatLngExpression | null>(null);
+	const DEFAULT_CENTER: LatLngExpression = [34.8833, 134.3667]; // Kamigori, Japan
+	const [mapCenter, setMapCenter] = useState<LatLngExpression>(DEFAULT_CENTER);
 	const [locationName, setLocationName] = useState("");
+	const [geocoding, setGeocoding] = useState(false);
+	const [hasGeocodedResult, setHasGeocodedResult] = useState(false);
 	const geocodeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// Form state
@@ -74,10 +77,16 @@ export default function OnboardingPage() {
 		if (geocodeTimeout.current) clearTimeout(geocodeTimeout.current);
 
 		if (zipCode.length !== 5 || !/^\d{5}$/.test(zipCode)) {
-			setMapCenter(null);
-			setLocationName("");
+			if (hasGeocodedResult) {
+				setMapCenter(DEFAULT_CENTER);
+				setLocationName("");
+				setHasGeocodedResult(false);
+			}
+			setGeocoding(false);
 			return;
 		}
+
+		setGeocoding(true);
 
 		geocodeTimeout.current = setTimeout(async () => {
 			try {
@@ -89,9 +98,12 @@ export default function OnboardingPage() {
 				if (data.length > 0) {
 					setMapCenter([Number.parseFloat(data[0].lat), Number.parseFloat(data[0].lon)]);
 					setLocationName(data[0].display_name?.split(",").slice(0, 2).join(",") ?? "");
+					setHasGeocodedResult(true);
 				}
 			} catch {
-				// Geocoding failed silently — map just won't show
+				// Geocoding failed silently
+			} finally {
+				setGeocoding(false);
 			}
 		}, 400);
 
@@ -232,37 +244,48 @@ export default function OnboardingPage() {
 									</div>
 
 									{/* Map */}
-									{mapCenter && (
-										<div
-											className="overflow-hidden rounded-xl border border-white/[0.08]"
-											style={{ animation: "scale-in 0.4s cubic-bezier(0.16, 1, 0.3, 1)" }}
+									<div className="relative overflow-hidden rounded-xl border border-white/[0.08]">
+										<Map
+											key={`${(mapCenter as number[])[0]}-${(mapCenter as number[])[1]}`}
+											center={mapCenter}
+											zoom={hasGeocodedResult ? 12 : 6}
+											className="h-56 w-full !min-h-0 !rounded-xl"
+											scrollWheelZoom={false}
+											dragging={false}
+											doubleClickZoom={false}
+											touchZoom={false}
 										>
-											<Map
-												center={mapCenter}
-												zoom={12}
-												className="h-56 w-full !min-h-0 !rounded-xl"
-												scrollWheelZoom={false}
-												dragging={false}
-												doubleClickZoom={false}
-												touchZoom={false}
-											>
-												<MapTileLayer />
+											<MapTileLayer />
+											{hasGeocodedResult && (
 												<MapCircle
 													center={mapCenter}
 													radius={3000}
 													className="!fill-white/10 !stroke-white/30 !stroke-1"
 												/>
-											</Map>
-											{locationName && (
-												<div className="border-t border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
-													<p className="flex items-center gap-2 text-sm text-muted-foreground">
-														<MapPin className="size-3.5 shrink-0 text-white/40" />
-														{locationName}
-													</p>
-												</div>
 											)}
-										</div>
-									)}
+										</Map>
+
+										{/* Geocoding loader overlay */}
+										{geocoding && (
+											<div className="absolute inset-0 z-[1000] flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
+												<div className="flex flex-col items-center gap-3">
+													<div className="relative size-8">
+														<div className="absolute inset-0 animate-spin rounded-full border-2 border-white/10 border-t-white/70" style={{ animationDuration: "0.8s" }} />
+													</div>
+													<span className="text-xs font-medium text-white/60">Finding your area...</span>
+												</div>
+											</div>
+										)}
+
+										{locationName && !geocoding && (
+											<div className="border-t border-white/[0.06] bg-white/[0.02] px-4 py-2.5">
+												<p className="flex items-center gap-2 text-sm text-muted-foreground">
+													<MapPin className="size-3.5 shrink-0 text-white/40" />
+													{locationName}
+												</p>
+											</div>
+										)}
+									</div>
 
 									<Button
 										onClick={goNext}
