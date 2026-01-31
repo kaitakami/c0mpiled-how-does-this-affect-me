@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { convertToModelMessages, streamText } from "ai";
+import { convertToModelMessages, generateText, streamText } from "ai";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import * as hyperspell from "@/lib/hyperspell";
@@ -52,22 +52,15 @@ export async function POST(request: Request) {
 			.map((p: { text: string }) => p.text)
 			.join("") ?? "";
 
-	// Query Hyperspell for relevant memories (profile + past Q&A)
-	let memoryContext = "";
+	// Fetch user's consolidated memory
+	let currentMemory = "";
 	try {
-		const memories = await hyperspell.queryMemories(userId, lastUserMessage, {
-			maxResults: 5,
-		});
-		if (memories?.documents?.length > 0) {
-			memoryContext = memories.documents
-				.map(
-					(d: { text: string; title: string | null }) =>
-						`[${d.title ?? "Memory"}]: ${d.text}`,
-				)
-				.join("\n\n");
+		const mem = await hyperspell.getMemory(userId);
+		if (mem?.text) {
+			currentMemory = mem.text;
 		}
 	} catch {
-		// Hyperspell unavailable — continue without memory context
+		// Hyperspell unavailable — continue without memory
 	}
 
 	// Build profile context
@@ -97,7 +90,7 @@ ${profileContext}
 
 ${MEASURES_CONTEXT}
 ${focusMeasure}
-${memoryContext ? `\nRelevant context from previous interactions:\n${memoryContext}` : ""}
+${currentMemory ? `\nUser memory (accumulated context from past interactions):\n${currentMemory}` : ""}
 
 Guidelines:
 - Be concise and direct — 2-4 sentences for simple questions, more for complex ones
@@ -114,11 +107,21 @@ Guidelines:
 		system: systemPrompt,
 		messages: modelMessages,
 		onFinish: async ({ text }) => {
-			// Write Q&A back to Hyperspell memory
+			// AI agent decides whether to update the user's memory
 			try {
-				await hyperspell.addQAMemory(userId, lastUserMessage, text, measureId);
+				const { text: decision } = await generateText({
+					model: openai("gpt-4o-mini"),
+					system: `You manage a user's memory for a ballot impact app. You receive the current memory and a new Q&A exchange. Decide if the memory should be updated with new info (preferences, concerns, clarifications, inferred facts about the user). If yes, output the full updated memory. If no new info worth saving, output exactly "NO_UPDATE". Keep the memory concise — bullet points, max 15 lines. Never remove existing useful info, only add or refine.`,
+					prompt: `CURRENT MEMORY:\n${currentMemory || "(empty)"}\n\nNEW Q&A:\nQ: ${lastUserMessage}\nA: ${text}`,
+				});
+
+				if (decision.trim() !== "NO_UPDATE") {
+					await hyperspell.updateMemory(userId, decision.trim(), {
+						lastUpdated: new Date().toISOString(),
+					});
+				}
 			} catch {
-				// Memory write failed silently — don't break the response
+				// Memory update failed silently
 			}
 		},
 	});
