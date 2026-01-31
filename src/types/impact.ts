@@ -1,3 +1,4 @@
+import type { BallotMeasure } from "./ballot";
 import type { UserProfile } from "./user";
 
 // ── Impact Calculations ──────────────────────────────────────
@@ -21,4 +22,9 @@ export interface CalculateImpactResponse {
 	amount: number; // raw number, e.g. 1500
 	direction: ImpactDirection;
 	explanation: string; // e.g. "Caps your annual rent increase at 5%, saving you ~$1,500/year"
+}
+
+export interface MeasureWithImpact {
+	measure: BallotMeasure;
+	impact: CalculateImpactResponse;
 }

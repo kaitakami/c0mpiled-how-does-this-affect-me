@@ -26,6 +26,7 @@ import {
 	MapTileLayer,
 } from "@/components/ui/map";
 import { api } from "@/lib/api-client";
+import { authClient } from "@/lib/auth-client";
 import type { HousingStatus, IncomeRange, JobSector } from "@/types";
 
 const TOTAL_STEPS = 4;
@@ -173,8 +174,11 @@ export default function OnboardingPage() {
 
 		setSubmitting(true);
 		try {
+			const session = await authClient.getSession();
+			const userId = session.data?.user?.id ?? `user-${Date.now()}`;
+
 			await api.createUserProfile({
-				userId: `user-${Date.now()}`,
+				userId,
 				zipCode,
 				housingStatus,
 				homeValue:

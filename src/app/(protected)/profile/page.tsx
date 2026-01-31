@@ -1,15 +1,15 @@
-import { Vote } from "lucide-react";
+import { ArrowLeft, Vote } from "lucide-react";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { auth } from "@/lib/auth";
-import { BallotDashboard } from "./ballot-dashboard";
-import { ProfileGuard } from "./profile-guard";
-import { SignOutButton } from "./sign-out-button";
+import { ProfileGuard } from "../dashboard/profile-guard";
+import { SignOutButton } from "../dashboard/sign-out-button";
+import { ProfileContent } from "./profile-content";
 
-export default async function DashboardPage() {
+export default async function ProfilePage() {
 	const session = await auth.api.getSession({
 		headers: await headers(),
 	});
@@ -28,14 +28,13 @@ export default async function DashboardPage() {
 	return (
 		<ProfileGuard>
 			<div className="relative min-h-screen bg-background">
-				{/* Subtle background */}
 				<div className="pointer-events-none fixed inset-0 bg-dot-pattern opacity-20" />
 
 				{/* Header */}
 				<header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
-					<div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+					<div className="mx-auto flex h-16 max-w-4xl items-center justify-between px-6">
 						<Link href="/" className="flex items-center gap-2.5">
-							<div className="flex size-8 items-center justify-center rounded-lg bg-white/10 border border-white/[0.06]">
+							<div className="flex size-8 items-center justify-center rounded-lg border border-white/[0.06] bg-white/10">
 								<Vote className="size-4 text-white" />
 							</div>
 							<span className="text-sm font-semibold tracking-tight text-foreground">
@@ -44,10 +43,7 @@ export default async function DashboardPage() {
 						</Link>
 
 						<div className="flex items-center gap-4">
-							<Link
-								href="/profile"
-								className="flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.04]"
-							>
+							<div className="flex items-center gap-3">
 								<Avatar className="size-8 border border-white/[0.08]">
 									<AvatarFallback className="bg-white/10 text-xs text-foreground">
 										{initials}
@@ -61,27 +57,36 @@ export default async function DashboardPage() {
 										{session.user.email}
 									</p>
 								</div>
-							</Link>
+							</div>
 							<SignOutButton />
 						</div>
 					</div>
 				</header>
 
 				{/* Content */}
-				<main className="mx-auto max-w-6xl px-6 py-12">
+				<main className="mx-auto max-w-4xl px-6 py-12">
+					<div className="mb-2">
+						<Link
+							href="/dashboard"
+							className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+						>
+							<ArrowLeft className="size-3.5" />
+							Back to Dashboard
+						</Link>
+					</div>
+
 					<div className="mb-8">
 						<h1 className="text-2xl font-bold tracking-tight text-foreground">
-							Your Ballot Impact
+							Profile
 						</h1>
 						<p className="mt-1 text-sm text-muted-foreground">
-							Welcome back, {session.user.name.split(" ")[0]}. Here&apos;s how
-							upcoming measures affect your household.
+							Your account, civic profile, and memory debug info.
 						</p>
 					</div>
 
 					<Separator className="mb-8 opacity-50" />
 
-					<BallotDashboard />
+					<ProfileContent />
 				</main>
 			</div>
 		</ProfileGuard>

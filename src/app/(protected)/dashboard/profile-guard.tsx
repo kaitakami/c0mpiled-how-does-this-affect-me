@@ -4,22 +4,26 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
+import { ProfileProvider } from "@/lib/profile-context";
+import type { UserProfile } from "@/types";
 
 export function ProfileGuard({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
+	const [profile, setProfile] = useState<UserProfile | null>(null);
 	const [ready, setReady] = useState(false);
 
 	useEffect(() => {
-		api.getUserProfile("current").then((profile) => {
-			if (!profile) {
+		api.getUserProfile("current").then((p) => {
+			if (!p) {
 				router.replace("/onboarding");
 			} else {
+				setProfile(p);
 				setReady(true);
 			}
 		});
 	}, [router]);
 
-	if (!ready) {
+	if (!ready || !profile) {
 		return (
 			<div className="flex min-h-screen items-center justify-center bg-background">
 				<div className="pointer-events-none fixed inset-0 bg-dot-pattern opacity-20" />
@@ -28,5 +32,5 @@ export function ProfileGuard({ children }: { children: React.ReactNode }) {
 		);
 	}
 
-	return <>{children}</>;
+	return <ProfileProvider profile={profile}>{children}</ProfileProvider>;
 }

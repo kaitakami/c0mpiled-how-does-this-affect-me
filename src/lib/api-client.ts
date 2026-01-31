@@ -5,6 +5,7 @@ import type {
 	BallotWithMeasures,
 	CalculateImpactRequest,
 	CalculateImpactResponse,
+	MeasureWithImpact,
 	UserProfile,
 	UserProfileInput,
 } from "@/types";
@@ -13,7 +14,8 @@ import type {
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const USE_MOCKS = true; // flip to false when Ashley's backend is ready
+const MOCK_PROFILE = false; // false → real Hyperspell memory
+const MOCK_BALLOTS = true; // flip to false when Ashley's ballot DB is ready
 
 async function fetcher<T>(url: string, init?: RequestInit): Promise<T> {
 	const res = await fetch(url, init);
@@ -30,13 +32,16 @@ export const api = {
 	// ── User Profile ─────────────────────────────────────────
 
 	async getUserProfile(userId: string): Promise<UserProfile | null> {
-		if (USE_MOCKS) return mock.getUserProfile(userId);
-		return fetcher<UserProfile>(`/api/user-profile?userId=${userId}`);
+		if (MOCK_PROFILE) return mock.getUserProfile(userId);
+		const res = await fetch("/api/memory/profile");
+		if (res.status === 404) return null;
+		if (!res.ok) throw new Error(`Failed to get profile: ${res.status}`);
+		return res.json() as Promise<UserProfile>;
 	},
 
 	async createUserProfile(input: UserProfileInput): Promise<UserProfile> {
-		if (USE_MOCKS) return mock.createUserProfile(input);
-		return fetcher<UserProfile>("/api/user-profile", {
+		if (MOCK_PROFILE) return mock.createUserProfile(input);
+		return fetcher<UserProfile>("/api/memory/profile", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(input),
@@ -46,21 +51,21 @@ export const api = {
 	// ── Ballots ──────────────────────────────────────────────
 
 	async getBallot(state: string, county: string): Promise<Ballot> {
-		if (USE_MOCKS) return mock.getBallot(state, county);
+		if (MOCK_BALLOTS) return mock.getBallot(state, county);
 		return fetcher<Ballot>(
 			`/api/ballots?state=${encodeURIComponent(state)}&county=${encodeURIComponent(county)}`,
 		);
 	},
 
 	async getBallotMeasures(ballotId: string): Promise<BallotWithMeasures> {
-		if (USE_MOCKS) return mock.getBallotMeasures(ballotId);
+		if (MOCK_BALLOTS) return mock.getBallotMeasures(ballotId);
 		return fetcher<BallotWithMeasures>(`/api/ballots/${ballotId}/measures`);
 	},
 
 	// ── Measures ─────────────────────────────────────────────
 
 	async getMeasure(measureId: string): Promise<BallotMeasureDetail> {
-		if (USE_MOCKS) return mock.getMeasure(measureId);
+		if (MOCK_BALLOTS) return mock.getMeasure(measureId);
 		return fetcher<BallotMeasureDetail>(`/api/measures/${measureId}`);
 	},
 
@@ -69,12 +74,38 @@ export const api = {
 	async calculateImpact(
 		req: CalculateImpactRequest,
 	): Promise<CalculateImpactResponse> {
-		if (USE_MOCKS) return mock.calculateImpact(req);
+		if (MOCK_BALLOTS) return mock.calculateImpact(req);
 		return fetcher<CalculateImpactResponse>("/api/calculate-impact", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(req),
 		});
+	},
+
+	// ── Aggregate ────────────────────────────────────────────
+
+	async getAllImpacts(profile: {
+		housingStatus: UserProfile["housingStatus"];
+		homeValue: number | null;
+		monthlyRent: number | null;
+		incomeRange: UserProfile["incomeRange"];
+		householdSize: number;
+	}): Promise<MeasureWithImpact[]> {
+		// Get ballot for the user's area (mock: CA / Los Angeles)
+		const ballot = await this.getBallot("CA", "Los Angeles");
+		const { measures } = await this.getBallotMeasures(ballot.id);
+
+		const impacts = await Promise.all(
+			measures.map(async (measure) => {
+				const impact = await this.calculateImpact({
+					measureId: measure.id,
+					profile,
+				});
+				return { measure, impact } as MeasureWithImpact;
+			}),
+		);
+
+		return impacts;
 	},
 };
 
